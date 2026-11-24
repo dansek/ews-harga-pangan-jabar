@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EWS Harga Pangan Jawa Barat</title>
+<meta name="description" content="Sistem peringatan dini harga pangan strategis kab/kota Jawa Barat berbasis machine learning">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌶️</text></svg>">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f4f3f0;
+    --surface-1: #fcfcfb;
+    --border: #e3e2dd;
+    --grid: #ebeae6;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #7a7974;
+    --series-1: #2a78d6;   /* AI / prediksi */
+    --series-2: #eb6834;   /* Naive / pembanding */
+    --series-3: #1baf7a;
+    --neutral-mark: #b9b7b0;
+    --ink-line: #2f2f2c;   /* harga aktual */
+    --good: #0ca30c;
+    --warning: #fab219;
+    --critical: #d03b3b;
+    --good-bg: #e7f6e7;
+    --warning-bg: #fff4d9;
+    --critical-bg: #fbe7e7;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: var(--surface-0); color: var(--text-primary); }
+  header { background: var(--surface-1); border-bottom: 1px solid var(--border); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+  .head { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: flex-end; justify-content: space-between; padding: 18px 0 10px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  .sub { color: var(--text-secondary); font-size: 14px; margin-top: 2px; }
+  .stamp { font-size: 13px; color: var(--text-secondary); text-align: left; }
+  .stamp b { color: var(--text-primary); }
+  nav { display: flex; gap: 4px; overflow-x: auto; }
+  nav button { appearance: none; border: 0; background: none; font: inherit; font-weight: 600; color: var(--text-secondary);
+               padding: 10px 14px; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
+  nav button[aria-selected="true"] { color: var(--text-primary); border-bottom-color: var(--series-1); }
+  nav button:hover { color: var(--text-primary); }
+  main.wrap { padding-top: 20px; padding-bottom: 48px; }
+  section[role="tabpanel"] { display: none; }
+  section[role="tabpanel"].active { display: block; }
+  .grid { display: grid; gap: 16px; }
+  .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g32 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  @media (max-width: 900px) { .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g2, .g32 { grid-template-columns: 1fr; } }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; min-width: 0; }
+  .card h2 { font-size: 16px; margin: 0 0 2px; }
+  .card .desc { color: var(--text-secondary); font-size: 13px; margin: 0 0 10px; }
+  .mt { margin-top: 16px; }
+  .tile .label { font-size: 13px; color: var(--text-secondary); }
+  .tile .value { font-size: 30px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; margin: 4px 0 2px; }
+  .tile .note { font-size: 12.5px; color: var(--text-muted); }
+  .tile .value small { font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+  .filters { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; margin-bottom: 14px; }
+  .filters label { display: flex; flex-direction: column; font-size: 12.5px; color: var(--text-secondary); gap: 4px; font-weight: 600; }
+  select { font: inherit; font-size: 14px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-1);
+           color: var(--text-primary); min-width: 190px; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { font: inherit; font-size: 13.5px; border: 0; background: var(--surface-1); padding: 7px 12px; cursor: pointer; color: var(--text-secondary); }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button[aria-pressed="true"] { background: var(--series-1); color: #fff; }
+  .chart { width: 100%; min-height: 340px; }
+  .chart.tall { min-height: 420px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { padding: 7px 8px; border-bottom: 1px solid var(--grid); text-align: left; vertical-align: middle; }
+  th { font-size: 12.5px; color: var(--text-secondary); font-weight: 600; background: var(--surface-0); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tbl-scroll { overflow-x: auto; }
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .badge .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .st-merah { background: var(--critical-bg); color: #8f1f1f; } .st-merah .dot { background: var(--critical); }
+  .st-kuning { background: var(--warning-bg); color: #7a5200; } .st-kuning .dot { background: var(--warning); }
+  .st-hijau { background: var(--good-bg); color: #0b5e0b; } .st-hijau .dot { background: var(--good); }
+  .matrix td.cell { cursor: pointer; white-space: nowrap; }
+  td.nowrap { white-space: nowrap; }
+  .matrix td.cell:hover { background: var(--surface-0); }
+  .matrix .p { color: var(--text-muted); font-size: 12px; margin-left: 4px; font-variant-numeric: tabular-nums; }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12.5px; color: var(--text-secondary); margin-top: 10px; }
+  .reco { margin: 0; padding: 0; list-style: none; }
+  .reco li { padding: 10px 0; border-bottom: 1px solid var(--grid); }
+  .reco li:last-child { border-bottom: 0; }
+  .reco b { display: inline-block; margin-right: 6px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; margin: 10px 0; }
+  .kv dt { color: var(--text-secondary); }
+  .kv dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+  .big-status { font-size: 15px; padding: 5px 12px; }
+  .callout { border-left: 4px solid var(--series-1); background: #eef4fc; padding: 10px 14px; border-radius: 6px; font-size: 14px; margin: 10px 0 0; }
+  .callout.warn { border-left-color: var(--warning); background: var(--warning-bg); }
+  .yes { color: #0b5e0b; font-weight: 700; } .no { color: var(--text-secondary); font-weight: 700; }
+  .prose { max-width: 820px; }
+  .prose h3 { font-size: 15px; margin: 18px 0 4px; }
+  .prose p, .prose li { color: var(--text-secondary); }
+  a { color: var(--series-1); }
+  footer { color: var(--text-muted); font-size: 12.5px; padding: 0 0 28px; }
+  #loading { padding: 60px; text-align: center; color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <h1>Early Warning System Harga Pangan Strategis — Jawa Barat</h1>
+        <div class="sub">Prediksi harga 1–4 minggu & peringatan dini lonjakan untuk 9 kab/kota · mendukung Tim Pengendalian Inflasi Daerah (TPID)</div>
+      </div>
+      <div class="stamp" id="stamp"></div>
+    </div>
+    <nav role="tablist" aria-label="Halaman dashboard">
+      <button role="tab" data-tab="ringkasan" aria-selected="true">Ringkasan</button>
+      <button role="tab" data-tab="prediksi" aria-selected="false">Prediksi per Daerah</button>
+      <button role="tab" data-tab="evaluasi" aria-selected="false">Evaluasi Model</button>
+      <button role="tab" data-tab="tentang" aria-selected="false">Tentang & Metodologi</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="loading">Memuat data…</div>
+
+  <!-- ===================== RINGKASAN ===================== -->
+  <section role="tabpanel" id="tab-ringkasan">
+    <div class="grid g4" id="kpi"></div>
+
+    <div class="card mt">
+      <div class="filters">
+        <label>Komoditas
+          <select id="r-kom"></select>
+        </label>
+        <div class="sub" id="r-kom-note"></div>
+      </div>
+      <div class="grid g2">
+        <div>
+          <h2>Peta status peringatan</h2>
+          <p class="desc">Warna = status peluang lonjakan &gt;10% dalam 4 minggu ke depan. Arahkan kursor untuk detail.</p>
+          <div id="r-map" class="chart"></div>
+        </div>
+        <div>
+          <h2>Peluang lonjakan per kab/kota</h2>
+          <p class="desc">Garis vertikal = ambang alarm (siaga). Diurutkan dari peluang tertinggi.</p>
+          <div id="r-bar" class="chart"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g32 mt">
+      <div class="card">
+        <h2>Matriks status: kab/kota × komoditas</h2>
+        <p class="desc">Angka = probabilitas lonjakan. Klik sel untuk melihat grafik prediksinya.</p>
+        <div class="tbl-scroll"><table class="matrix" id="r-matrix"></table></div>
+        <div class="legend-row" id="r-legend"></div>
+      </div>
+      <div class="card">
+        <h2>Rekomendasi tindakan</h2>
+        <p class="desc">Disusun otomatis dari status & prediksi terbaru.</p>
+        <ul class="reco" id="r-reco"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PREDIKSI ===================== -->
+  <section role="tabpanel" id="tab-prediksi">
+    <div class="card">
+      <div class="filters">
+        <label>Komoditas <select id="p-kom"></select></label>
+        <label>Kab/kota <select id="p-kab"></select></label>
+        <label>Rentang histori
+          <span class="seg" id="p-range">
+            <button data-w="26" aria-pressed="false">6 bln</button>
+            <button data-w="52" aria-pressed="true">1 thn</button>
+            <button data-w="156" aria-pressed="false">3 thn</button>
+            <button data-w="9999" aria-pressed="false">Semua</button>
+          </span>
+        </label>
+      </div>
+      <div class="grid g32">
+        <div>
+          <h2 id="p-title">Harga & prediksi</h2>
+          <p class="desc">Garis hitam = harga mingguan aktual. Garis biru putus-putus = prediksi 1–4 minggu; area biru = rentang 80% (10%–90%).</p>
+          <div id="p-chart" class="chart tall"></div>
+        </div>
+        <div>
+          <div class="card" style="background:var(--surface-0)">
+            <div id="p-status"></div>
+            <dl class="kv" id="p-kv"></dl>
+            <div id="p-model"></div>
+          </div>
+          <div class="mt">
+            <h2>Tabel prediksi</h2>
+            <table id="p-table"></table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card mt">
+      <h2>Perbandingan harga antar kab/kota</h2>
+      <p class="desc">Harga mingguan komoditas terpilih di 9 kab/kota (1 tahun terakhir). Kab/kota terpilih ditebalkan.</p>
+      <div id="p-compare" class="chart"></div>
+    </div>
+  </section>
+
+  <!-- ===================== EVALUASI ===================== -->
+  <section role="tabpanel" id="tab-evaluasi">
+    <div class="card">
+      <h2>Apakah AI benar-benar diperlukan?</h2>
+      <p class="desc">Hasil uji pada periode Jan 2024 – Nov 2026 (data yang tidak pernah dilihat model saat dilatih). Prediksi horizon 4 minggu.</p>
+      <div class="tbl-scroll"><table id="e-need"></table></div>
+      <div class="callout" id="e-need-note"></div>
+    </div>
+
+    <div class="grid g2 mt">
+      <div class="card">
+        <h2>Akurasi prediksi harga (MAPE)</h2>
+        <p class="desc">Rata-rata kesalahan persentase — makin pendek makin baik. Biru = pendekatan AI.</p>
+        <div class="filters"><label>Horizon
+          <span class="seg" id="e-h">
+            <button data-h="1" aria-pressed="false">1 mgg</button><button data-h="2" aria-pressed="false">2 mgg</button>
+            <button data-h="3" aria-pressed="false">3 mgg</button><button data-h="4" aria-pressed="true">4 mgg</button>
+          </span></label></div>
+        <div id="e-mape" class="chart"></div>
+      </div>
+      <div class="card">
+        <h2>MAPE per komoditas: AI vs Naive</h2>
+        <p class="desc">Horizon 4 minggu. AI unggul pada komoditas bergejolak; Naive cukup untuk komoditas stabil.</p>
+        <div id="e-kom" class="chart" style="margin-top:46px"></div>
+      </div>
+    </div>
+
+    <div class="card mt">
+      <h2>Kualitas peringatan dini lonjakan</h2>
+      <p class="desc">Lonjakan = harga naik &gt;10% dalam 4 minggu. Presisi = dari semua alarm, berapa yang benar terjadi. Recall = dari semua lonjakan, berapa yang terdeteksi.</p>
+      <div class="grid g2">
+        <div id="e-clf" class="chart"></div>
+        <div class="tbl-scroll"><table id="e-clf-table"></table><div class="callout" id="e-clf-note"></div></div>
+      </div>
+    </div>
+
+    <div class="card mt">
+      <h2>Backtest: prediksi 4 minggu vs kenyataan</h2>
+      <p class="desc">Setiap titik biru adalah prediksi yang dibuat 4 minggu sebelumnya dengan data yang tersedia saat itu.</p>
+      <div class="filters">
+        <label>Komoditas <select id="b-kom"></select></label>
+        <label>Kab/kota <select id="b-kab"></select></label>
+        <div class="sub" id="b-score"></div>
+      </div>
+      <div id="b-chart" class="chart tall"></div>
+    </div>
+
+    <div class="grid g2 mt">
+      <div class="card">
+        <h2>Faktor pendorong lonjakan</h2>
+        <p class="desc">Permutation importance: seberapa turun kualitas alarm (PR-AUC) jika fitur diacak.</p>
+        <div id="e-imp" class="chart tall"></div>
+      </div>
+      <div class="card">
+        <h2>Uji signifikansi Diebold-Mariano</h2>
+        <p class="desc">H₀: akurasi AI sama dengan pembanding. p &lt; 0,05 → perbedaan signifikan.</p>
+        <div class="tbl-scroll"><table id="e-dm"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TENTANG ===================== -->
+  <section role="tabpanel" id="tab-tentang">
+    <div class="card prose">
+      <h2>Tentang dashboard ini</h2>
+      <p>Dashboard ini adalah produk proyek UAS <b>AI for Innovation</b> (Magister Inovasi Regional 2026/2027). Tujuannya membantu
+        TPID kab/kota di Jawa Barat bergerak <b>proaktif</b>: mengetahui komoditas dan daerah yang berpeluang mengalami lonjakan harga
+        <i>sebelum</i> terjadi, sehingga operasi pasar, kerja sama antar daerah, atau pemantauan pasokan dapat disiapkan lebih awal.</p>
+
+      <h3>Data</h3>
+      <ul>
+        <li>Sumber: Pusat Informasi Harga Pangan Strategis Nasional (PIHPS), Bank Indonesia — harga harian pasar tradisional.</li>
+        <li>Cakupan: 9 kab/kota yang dipantau PIHPS di Jawa Barat; 5 komoditas fokus; Januari 2019 – November 2026.</li>
+        <li>Diolah menjadi harga mingguan (median, minggu berakhir Jumat); 3 titik salah input dibersihkan.</li>
+      </ul>
+
+      <h3>Metode</h3>
+      <ul>
+        <li><b>Prediksi harga (regresi):</b> Gradient Boosting global untuk 45 seri, fitur momentum harga, volatilitas, kondisi regional
+          Jawa Barat, musim, dan jarak ke Idulfitri. Interval 80% dari model kuantil.</li>
+        <li><b>Sistem hibrida:</b> untuk tiap komoditas dipilih model terbaik pada periode validasi 2023 — AI (Gradient Boosting) atau Naive.</li>
+        <li><b>Peringatan dini (klasifikasi):</b> Gradient Boosting memperkirakan peluang harga naik &gt;10% dalam 4 minggu.
+          Status: <span class="badge st-merah"><span class="dot"></span>Siaga</span> jika peluang ≥ ambang,
+          <span class="badge st-kuning"><span class="dot"></span>Waspada</span> jika ≥ ½ ambang,
+          selain itu <span class="badge st-hijau"><span class="dot"></span>Aman</span>. Ambang dipilih agar frekuensi alarm setara frekuensi lonjakan historis.</li>
+        <li><b>Evaluasi:</b> walk-forward pada Jan 2024 – Nov 2026 (model dilatih ulang tiap 8 minggu tanpa melihat data masa depan),
+          dibandingkan dengan 4 baseline non-AI dan 2 aturan alarm non-AI, ditambah uji Diebold-Mariano.</li>
+      </ul>
+
+      <h3>Keterbatasan</h3>
+      <ul>
+        <li>Hanya 9 dari 27 kab/kota Jawa Barat yang dipantau PIHPS (dominan perkotaan).</li>
+        <li>Belum memakai data pasokan, produksi, stok, atau cuaca.</li>
+        <li>Presisi alarm ±50%: separuh alarm belum tentu diikuti lonjakan — gunakan sebagai pemicu pemantauan intensif, bukan dasar tunggal intervensi.</li>
+        <li>Untuk beras medium dan bawang putih, lonjakan sangat jarang sehingga alarm untuk komoditas ini kurang informatif.</li>
+        <li>Minggu terakhir pada data bisa merupakan minggu berjalan (belum lengkap 5 hari kerja).</li>
+      </ul>
+
+      <h3>Tautan</h3>
+      <ul>
+        <li>Repositori: <a href="https://github.com/dansek/ews-harga-pangan-jabar">github.com/dansek/ews-harga-pangan-jabar</a></li>
+        <li>Notebook 01 – Pengambilan data & EDA: <a href="https://colab.research.google.com/github/dansek/ews-harga-pangan-jabar/blob/main/notebooks/01_pengambilan_data_dan_eda.ipynb">Google Colab</a></li>
+        <li>Notebook 02 – Prediksi, peringatan dini & uji kebutuhan AI: <a href="https://colab.research.google.com/github/dansek/ews-harga-pangan-jabar/blob/main/notebooks/02_analisis_prediksi_dan_peringatan_dini.ipynb">Google Colab</a></li>
+        <li>Sumber data: <a href="https://www.bi.go.id/hargapangan">PIHPS Bank Indonesia</a></li>
+      </ul>
+    </div>
+  </section>
+</main>
+<footer class="wrap" id="foot"></footer>
+
+<script>
+"use strict";
+// ---------- util ----------
+const $ = (s) => document.querySelector(s);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmtRp = (x) => x == null ? "–" : "Rp" + Math.round(x).toLocaleString("id-ID");
+const fmtPct = (x, d = 1) => x == null ? "–" : x.toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d }) + "%";
+const fmtNum = (x, d = 2) => x == null ? "–" : x.toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d });
+const BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+const tgl = (s) => { const d = new Date(s + "T00:00:00"); return `${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`; };
+const mingguLabel = (s) => { const e = new Date(s + "T00:00:00"), b = new Date(e); b.setDate(e.getDate() - 4);
+  return b.getMonth() === e.getMonth() ? `${b.getDate()}–${e.getDate()} ${BULAN[e.getMonth()]} ${e.getFullYear()}`
+                                       : `${b.getDate()} ${BULAN[b.getMonth()]} – ${e.getDate()} ${BULAN[e.getMonth()]} ${e.getFullYear()}`; };
+const STATUS = {
+  merah:  { label: "Siaga",   color: "--critical", icon: "▲" },
+  kuning: { label: "Waspada", color: "--warning",  icon: "●" },
+  hijau:  { label: "Aman",    color: "--good",     icon: "✓" },
+};
+const badge = (st, extra = "") => `<span class="badge st-${st} ${extra}"><span class="dot"></span>${STATUS[st].label}</span>`;
+const KOORD = {  // pusat kota / ibu kota kabupaten (Kab. Cirebon digeser sedikit agar tidak menumpuk)
+  "Kota Bandung": [-6.9175, 107.6191], "Kota Bekasi": [-6.2383, 106.9756], "Kota Bogor": [-6.5971, 106.8060],
+  "Kota Cirebon": [-6.7320, 108.5523], "Kab. Cirebon": [-6.8200, 108.4000], "Kota Depok": [-6.4025, 106.7942],
+  "Kota Sukabumi": [-6.9277, 106.9300], "Kota Tasikmalaya": [-7.3274, 108.2207], "Kab. Tasikmalaya": [-7.4200, 108.0800],
+};
+const isAI = (m) => /Gradient|Hibrida|Ridge/.test(m);
+
+// ---------- Plotly defaults ----------
+const BASE_LAYOUT = () => ({
+  paper_bgcolor: css("--surface-1"), plot_bgcolor: css("--surface-1"),
+  font: { family: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", size: 12.5, color: css("--text-secondary") },
+  margin: { l: 84, r: 16, t: 10, b: 40 },
+  xaxis: { gridcolor: css("--grid"), linecolor: css("--border"), zeroline: false, ticks: "" },
+  yaxis: { gridcolor: css("--grid"), linecolor: css("--border"), zeroline: false, ticks: "" },
+  hoverlabel: { bgcolor: "#fff", bordercolor: css("--border"), font: { color: css("--text-primary"), size: 12.5 } },
+  legend: { orientation: "h", x: 0, y: 1.08, yanchor: "bottom", font: { color: css("--text-secondary") } },
+});
+const CFG = { displayModeBar: false, responsive: true, locale: "id" };
+const merge = (a, b) => { for (const k in b) { a[k] = (b[k] && typeof b[k] === "object" && !Array.isArray(b[k]) && a[k]) ? merge({ ...a[k] }, b[k]) : b[k]; } return a; };
+const plot = (id, data, layout = {}) => Plotly.react(id, data, merge(BASE_LAYOUT(), layout), CFG);
+
+// ---------- state ----------
+let D, KOM, KAB;
+const S = { rKom: null, pKom: null, pKab: null, pWeeks: 52, eH: 4, bKom: null, bKab: null };
+
+function fillSelect(el, items, val) {
+  el.innerHTML = items.map((v) => `<option ${v === val ? "selected" : ""}>${v}</option>`).join("");
+}
+
+// ---------- tabs ----------
+function showTab(name) {
+  document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
+  document.querySelectorAll("section[role=tabpanel]").forEach((s) => s.classList.toggle("active", s.id === "tab-" + name));
+  if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+  render[name] && render[name]();
+  requestAnimationFrame(() => document.querySelectorAll(`#tab-${name} .js-plotly-plot`).forEach((g) => Plotly.Plots.resize(g)));
+}
+document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+
+// ---------- RINGKASAN ----------
+function renderKPI() {
+  const all = KOM.flatMap((k) => KAB.map((kb) => D.status[k][kb].status));
+  const n = (s) => all.filter((x) => x === s).length;
+  const reg = D.metrik_regresi.filter((r) => r.h === 4);
+  const m = (name) => reg.find((r) => r.model === name)["MAPE (%)"];
+  const clf = D.metrik_klasifikasi;
+  const pAI = clf.find((r) => r.model.startsWith("Gradient")).Presisi;
+  const pNon = clf.filter((r) => !r.model.startsWith("Gradient")).map((r) => r.Presisi);
+  $("#kpi").innerHTML = `
+    <div class="card tile"><div class="label">${badge("merah")}</div>
+      <div class="value">${n("merah")} <small>dari ${all.length}</small></div>
+      <div class="note">kombinasi kab/kota × komoditas berpeluang naik &gt;10% dalam 4 minggu</div></div>
+    <div class="card tile"><div class="label">${badge("kuning")}</div>
+      <div class="value">${n("kuning")} <small>dari ${all.length}</small></div>
+      <div class="note">peluang lonjakan sedang · ${n("hijau")} lainnya berstatus aman</div></div>
+    <div class="card tile"><div class="label">Kesalahan prediksi 4 minggu (MAPE)</div>
+      <div class="value">${fmtPct(m("Hibrida (AI + Naive)"))}</div>
+      <div class="note">vs ${fmtPct(m("Naive"))} jika hanya memakai harga minggu ini (Naive) · uji 2024–2026</div></div>
+    <div class="card tile"><div class="label">Presisi alarm lonjakan</div>
+      <div class="value">${fmtPct(pAI * 100, 0)}</div>
+      <div class="note">alarm AI yang benar terjadi, vs ${fmtPct(Math.min(...pNon) * 100, 0)}–${fmtPct(Math.max(...pNon) * 100, 0)} aturan non-AI</div></div>`;
+}
+
+function renderRingkasan() {
+  const k = S.rKom;
+  const st = D.status[k];
+  $("#r-kom-note").innerHTML = `Model prediksi harga: <b>${D.meta.model_per_komoditas[k]}</b>`;
+  // peta
+  const kabs = KAB.slice();
+  const col = (kb) => css(STATUS[st[kb].status].color);
+  const hover = (kb) => `<b>${kb}</b><br>${STATUS[st[kb].status].icon} ${STATUS[st[kb].status].label} · peluang ${fmtPct(st[kb].prob * 100, 0)}`
+    + `<br>Harga kini ${fmtRp(st[kb].harga)}<br>Prediksi 4 mgg ${fmtRp(st[kb].pred_4mgg)} (${st[kb].perubahan_4mgg >= 0 ? "+" : ""}${fmtPct(st[kb].perubahan_4mgg)})<extra></extra>`;
+  plot("r-map", [
+    { type: "scattermapbox", lat: kabs.map((kb) => KOORD[kb][0]), lon: kabs.map((kb) => KOORD[kb][1]), mode: "markers",
+      marker: { size: 26, color: css("--surface-1") }, hoverinfo: "skip", showlegend: false },
+    { type: "scattermapbox", lat: kabs.map((kb) => KOORD[kb][0]), lon: kabs.map((kb) => KOORD[kb][1]), mode: "markers",
+      marker: { size: 20, color: kabs.map(col) }, hovertemplate: kabs.map(hover), showlegend: false },
+    ...[["top right", (kb) => !kb.startsWith("Kab.")], ["bottom left", (kb) => kb.startsWith("Kab.")]].map(([pos, f]) => {
+      const sel = kabs.filter(f);
+      return { type: "scattermapbox", lat: sel.map((kb) => KOORD[kb][0]), lon: sel.map((kb) => KOORD[kb][1]), mode: "text",
+               text: sel.map((kb) => kb.replace("Kota ", "")), textposition: pos, hoverinfo: "skip", showlegend: false,
+               textfont: { size: 12, color: css("--text-primary") } };
+    }),
+  ], { margin: { l: 0, r: 0, t: 0, b: 0 }, mapbox: { style: "white-bg", center: { lat: -6.85, lon: 107.5 }, zoom: 7.1,
+               layers: [{ sourcetype: "raster", below: "traces", opacity: 0.45, sourceattribution: "© OpenStreetMap contributors",
+                          source: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"] }] } });
+  // bar peluang
+  const order = kabs.slice().sort((a, b) => st[a].prob - st[b].prob);
+  plot("r-bar", [{
+    type: "bar", orientation: "h", y: order, x: order.map((kb) => st[kb].prob * 100),
+    marker: { color: order.map(col), cornerradius: 4 }, width: 0.6,
+    text: order.map((kb) => fmtPct(st[kb].prob * 100, 0)), textposition: "outside", cliponaxis: false,
+    textfont: { color: css("--text-secondary") },
+    hovertemplate: order.map((kb) => `<b>${kb}</b><br>${STATUS[st[kb].status].label} · peluang ${fmtPct(st[kb].prob * 100, 1)}<extra></extra>`),
+  }], {
+    margin: { l: 120, r: 40, t: 10, b: 40 }, showlegend: false,
+    xaxis: { range: [0, 105], title: { text: "peluang lonjakan (%)" }, ticksuffix: "%" },
+    shapes: [{ type: "line", x0: D.meta.ambang_alarm * 100, x1: D.meta.ambang_alarm * 100, y0: -0.5, y1: order.length - 0.5,
+               line: { color: css("--critical"), width: 1.5, dash: "dot" } }],
+    annotations: [{ x: D.meta.ambang_alarm * 100, y: order.length - 0.5, yanchor: "bottom", text: `ambang siaga ${fmtPct(D.meta.ambang_alarm * 100, 0)}`,
+                    showarrow: false, font: { size: 11, color: css("--critical") } }],
+  });
+}
+
+function renderMatrix() {
+  const head = `<tr><th>Kab/kota</th>${KOM.map((k) => `<th>${k}</th>`).join("")}</tr>`;
+  const rows = KAB.map((kb) => `<tr><td><b>${kb}</b></td>${KOM.map((k) => {
+    const s = D.status[k][kb];
+    return `<td class="cell" data-kom="${k}" data-kab="${kb}" title="Lihat prediksi ${k} – ${kb}">${badge(s.status)}<span class="p">${fmtPct(s.prob * 100, 0)}</span></td>`;
+  }).join("")}</tr>`).join("");
+  $("#r-matrix").innerHTML = `<thead>${head}</thead><tbody>${rows}</tbody>`;
+  $("#r-matrix").querySelectorAll("td.cell").forEach((td) => td.addEventListener("click", () => {
+    S.pKom = td.dataset.kom; S.pKab = td.dataset.kab; $("#p-kom").value = S.pKom; $("#p-kab").value = S.pKab; showTab("prediksi");
+  }));
+  const a = D.meta.ambang_alarm * 100;
+  $("#r-legend").innerHTML = `${badge("merah")} peluang ≥ ${fmtPct(a, 0)} &nbsp; ${badge("kuning")} ${fmtPct(a / 2, 0)}–${fmtPct(a, 0)} &nbsp; ${badge("hijau")} &lt; ${fmtPct(a / 2, 0)}`;
+}
+
+function renderReco() {
+  const items = [];
+  for (const k of KOM) {
+    const st = D.status[k];
+    const siaga = KAB.filter((kb) => st[kb].status === "merah");
+    const waspada = KAB.filter((kb) => st[kb].status === "kuning");
+    if (!siaga.length && !waspada.length) continue;
+    const termurah = KAB.slice().sort((a, b) => st[a].harga - st[b].harga)[0];
+    const naik = siaga.map((kb) => st[kb].perubahan_4mgg).filter((x) => x != null);
+    const rata = naik.length ? naik.reduce((a, b) => a + b, 0) / naik.length : null;
+    let txt = `<b>${k}</b>`;
+    if (siaga.length) {
+      txt += `${badge("merah")} di ${siaga.length} kab/kota${siaga.length <= 4 ? " (" + siaga.join(", ") + ")" : ""}. `;
+      if (rata != null && Math.abs(rata) >= 1) txt += `Prediksi rata-rata ${rata >= 0 ? "naik" : "turun"} ${fmtPct(Math.abs(rata))} dalam 4 minggu. `;
+      txt += `Intensifkan pemantauan pasokan & siapkan operasi pasar / kerja sama antar daerah; harga terendah saat ini di <b>${termurah}</b> (${fmtRp(st[termurah].harga)}).`;
+    } else {
+      txt += `${badge("kuning")} di ${waspada.join(", ")}. Pantau perkembangan harga mingguan.`;
+    }
+    items.push({ n: siaga.length * 10 + waspada.length, html: txt });
+  }
+  items.sort((a, b) => b.n - a.n);
+  const aman = KOM.filter((k) => KAB.every((kb) => D.status[k][kb].status === "hijau"));
+  if (aman.length) items.push({ html: `<b>${aman.join(" & ")}</b> ${badge("hijau")} di seluruh kab/kota — tidak perlu tindakan khusus.` });
+  $("#r-reco").innerHTML = items.map((i) => `<li>${i.html}</li>`).join("");
+}
+
+// ---------- PREDIKSI ----------
+function renderPrediksi() {
+  const k = S.pKom, kb = S.pKab;
+  const hist = D.histori[k][kb], fc = D.prediksi[k][kb], st = D.status[k][kb];
+  const h = hist.slice(-Math.min(S.pWeeks, hist.length));
+  const last = hist[hist.length - 1];
+  const fx = [last[0], ...fc.map((f) => f.tanggal)];
+  $("#p-title").textContent = `${k} — ${kb}`;
+  plot("p-chart", [
+    { x: [...fx, ...fx.slice().reverse()], y: [last[1], ...fc.map((f) => f.p90), ...fc.map((f) => f.p10).reverse(), last[1]],
+      fill: "toself", fillcolor: "rgba(42,120,214,0.14)", line: { width: 0 }, mode: "lines", hoverinfo: "skip", name: "rentang 80%", type: "scatter" },
+    { x: h.map((r) => r[0]), y: h.map((r) => r[1]), type: "scatter", mode: "lines", name: "harga aktual",
+      line: { color: css("--ink-line"), width: 2 }, hovertemplate: "%{y:,.0f}<extra>aktual</extra>" },
+    { x: fx, y: [last[1], ...fc.map((f) => f.p50)], type: "scatter", mode: "lines+markers", name: "prediksi",
+      line: { color: css("--series-1"), width: 2, dash: "dash" }, marker: { size: 8, color: css("--series-1"), line: { color: css("--surface-1"), width: 2 } },
+      customdata: [[null, null], ...fc.map((f) => [f.p10, f.p90])],
+      hovertemplate: "%{y:,.0f}<br>rentang %{customdata[0]:,.0f} – %{customdata[1]:,.0f}<extra>prediksi</extra>" },
+  ], { hovermode: "x unified", yaxis: { tickprefix: "Rp", tickformat: ",.0f", separatethousands: true }, xaxis: { type: "date" },
+       separators: ",." });
+  $("#p-status").innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <span class="sub">Status peringatan</span>${badge(st.status, "big-status")}</div>`;
+  $("#p-kv").innerHTML = `
+    <dt>Peluang lonjakan &gt;10%</dt><dd>${fmtPct(st.prob * 100, 0)}</dd>
+    <dt>Harga minggu ini</dt><dd>${fmtRp(st.harga)}</dd>
+    <dt>Prediksi 4 minggu</dt><dd>${fmtRp(st.pred_4mgg)}</dd>
+    <dt>Perubahan diprediksi</dt><dd>${st.perubahan_4mgg >= 0 ? "+" : ""}${fmtPct(st.perubahan_4mgg)}</dd>
+    <dt>Minggu data terakhir</dt><dd>${mingguLabel(last[0])}</dd>`;
+  const model = D.meta.model_per_komoditas[k];
+  $("#p-model").innerHTML = model === "Naive"
+    ? `<div class="callout warn">Untuk <b>${k}</b>, model AI tidak lebih akurat daripada Naive pada periode validasi, sehingga prediksi harga memakai <b>Naive</b> (harga minggu ini) dengan rentang dari variasi historis. Status peringatan tetap dari model AI.</div>`
+    : `<div class="callout">Prediksi harga <b>${k}</b> memakai model <b>Gradient Boosting (AI)</b>, yang terbukti lebih akurat daripada metode non-AI untuk komoditas ini.</div>`;
+  $("#p-table").innerHTML = `<thead><tr><th>Minggu</th><th class="num">Prediksi</th><th class="num">Rentang 80%</th></tr></thead><tbody>
+    ${fc.map((f) => `<tr><td>+${f.h} · ${mingguLabel(f.tanggal)}</td><td class="num"><b>${fmtRp(f.p50)}</b></td><td class="num">${fmtRp(f.p10)} – ${fmtRp(f.p90)}</td></tr>`).join("")}</tbody>`;
+  // perbandingan antar kab/kota
+  const tr = KAB.map((x) => {
+    const hh = D.histori[k][x].slice(-52), sel = x === kb;
+    return { x: hh.map((r) => r[0]), y: hh.map((r) => r[1]), type: "scatter", mode: "lines", name: x,
+             line: { color: sel ? css("--series-1") : css("--neutral-mark"), width: sel ? 2.5 : 1.2 }, opacity: sel ? 1 : 0.8,
+             hovertemplate: `${x}: %{y:,.0f}<extra></extra>`, showlegend: false };
+  });
+  tr.push(tr.splice(KAB.indexOf(kb), 1)[0]);  // garis terpilih di atas
+  const lastPts = KAB.map((x) => D.histori[k][x].at(-1));
+  plot("p-compare", tr, { hovermode: "closest", yaxis: { tickprefix: "Rp", tickformat: ",.0f" }, separators: ",.",
+    annotations: [{ x: lastPts[KAB.indexOf(kb)][0], y: lastPts[KAB.indexOf(kb)][1], text: kb, xanchor: "left", showarrow: false,
+                    font: { color: css("--text-primary"), size: 12 }, xshift: 6 }], margin: { r: 110 } });
+}
+
+// ---------- EVALUASI ----------
+function renderNeed() {
+  const rek = D.rekap_kebutuhan_ai;
+  $("#e-need").innerHTML = `<thead><tr><th>Komoditas</th><th class="num">MAPE AI</th><th class="num">MAPE Naive</th><th class="num">Kesalahan AI vs Naive</th>
+      <th class="num">F1 alarm AI</th><th class="num">F1 alarm non-AI terbaik</th><th>AI diperlukan?</th><th>Model yang dipakai sistem</th></tr></thead><tbody>
+    ${rek.map((r) => `<tr><td><b>${r.komoditas}</b></td><td class="num">${fmtPct(r["MAPE AI"], 2)}</td><td class="num">${fmtPct(r["MAPE baseline terbaik"], 2)}</td>
+      <td class="num nowrap">${r["perbaikan MAPE (%)"] >= 0 ? "−" : "+"}${fmtPct(Math.abs(r["perbaikan MAPE (%)"]), 0)} ${r["perbaikan MAPE (%)"] >= 0 ? "(lebih baik)" : "(lebih buruk)"}</td>
+      <td class="num">${fmtNum(r["F1 AI"])}</td><td class="num">${fmtNum(r["F1 non-AI terbaik"])}</td>
+      <td class="nowrap ${r["AI diperlukan?"] === "Ya" ? "yes" : "no"}">${r["AI diperlukan?"] === "Ya" ? "✓ Ya" : "✗ Tidak, cukup non-AI"}</td>
+      <td class="nowrap">${D.meta.model_per_komoditas[r.komoditas]}${(r["AI diperlukan?"] === "Ya") !== (D.meta.model_per_komoditas[r.komoditas] !== "Naive") ? " *" : ""}</td></tr>`).join("")}</tbody>`;
+  const beda = rek.filter((r) => (r["AI diperlukan?"] === "Ya") !== (D.meta.model_per_komoditas[r.komoditas] !== "Naive")).map((r) => r.komoditas);
+  $("#e-need-note").innerHTML = `<b>Kesimpulan:</b> AI diperlukan untuk komoditas yang bergejolak (cabai & bawang merah) — kesalahan prediksi turun hingga ±19% dan alarm lonjakan jauh lebih tepat.
+    Untuk beras dan bawang putih yang harganya stabil, metode sederhana (Naive) justru lebih akurat. Karena itu sistem memakai pendekatan <b>hibrida</b>; pemilihan model per komoditas dilakukan pada data validasi 2023, bukan pada data uji.`
+    + (beda.length ? `<br><br>* <b>${beda.join(", ")}</b>: pada validasi 2023 AI belum unggul sehingga sistem memakai Naive; pada data uji AI ternyata sedikit lebih baik. Model per komoditas akan dievaluasi ulang pada pembaruan berikutnya — keputusan tidak diubah memakai data uji agar evaluasi tetap jujur.` : "");
+}
+
+function renderMAPE() {
+  const rows = D.metrik_regresi.filter((r) => r.h === S.eH).sort((a, b) => b["MAPE (%)"] - a["MAPE (%)"]);
+  plot("e-mape", [{
+    type: "bar", orientation: "h", y: rows.map((r) => r.model), x: rows.map((r) => r["MAPE (%)"]), width: 0.62,
+    marker: { color: rows.map((r) => isAI(r.model) ? css("--series-1") : css("--neutral-mark")), cornerradius: 4 },
+    text: rows.map((r) => fmtPct(r["MAPE (%)"], 2)), textposition: "outside", cliponaxis: false, textfont: { color: css("--text-secondary") },
+    hovertemplate: rows.map((r) => `<b>${r.model}</b><br>MAPE ${fmtPct(r["MAPE (%)"], 2)}<br>RMSE ${fmtRp(r["RMSE (Rp)"])}<br>Skill vs Naive ${fmtPct(r["Skill vs Naive (%)"])}<extra></extra>`),
+  }], { margin: { l: 170, r: 56, t: 10, b: 40 }, xaxis: { ticksuffix: "%", title: { text: `MAPE, horizon ${S.eH} minggu` } }, showlegend: false });
+}
+
+function renderKomBar() {
+  const r = D.metrik_regresi_komoditas.filter((x) => x.h === 4);
+  const get = (m) => KOM.map((k) => r.find((x) => x.komoditas === k && x.model === m)["MAPE (%)"]);
+  const ai = get("Gradient Boosting (AI)"), nv = get("Naive");
+  plot("e-kom", [
+    { type: "bar", name: "Gradient Boosting (AI)", x: KOM.map((k) => k.replace(" ", "<br>")), y: ai, marker: { color: css("--series-1"), cornerradius: 4 },
+      hovertemplate: "AI: %{y:.2f}%<extra></extra>" },
+    { type: "bar", name: "Naive (non-AI)", x: KOM.map((k) => k.replace(" ", "<br>")), y: nv, marker: { color: css("--series-2"), cornerradius: 4 },
+      hovertemplate: "Naive: %{y:.2f}%<extra></extra>" },
+  ], { barmode: "group", bargap: 0.35, bargroupgap: 0.08, hovermode: "x unified", margin: { b: 56 }, xaxis: { tickangle: 0 }, yaxis: { ticksuffix: "%", title: { text: "MAPE (h = 4 minggu)" } } });
+}
+
+function renderClf() {
+  const rows = D.metrik_klasifikasi;
+  const COL = { "Gradient Boosting (AI)": "--series-1", "Aturan momentum (non-AI)": "--series-2", "Aturan musiman (non-AI)": "--series-3" };
+  const metr = ["Presisi", "Recall", "F1"];
+  plot("e-clf", rows.map((r) => ({
+    type: "bar", name: r.model, x: metr, y: metr.map((m) => r[m]), marker: { color: css(COL[r.model]), cornerradius: 4 },
+    hovertemplate: `<b>${r.model}</b><br>%{x}: %{y:.3f}<extra></extra>`,
+  })), { barmode: "group", bargap: 0.3, bargroupgap: 0.08, yaxis: { range: [0, 1], title: { text: "skor (0–1)" } } });
+  $("#e-clf-table").innerHTML = `<thead><tr><th>Metode</th><th class="num">Presisi</th><th class="num">Recall</th><th class="num">F1</th><th class="num">ROC-AUC</th><th class="num">% minggu alarm</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr><td>${r.model}</td><td class="num">${fmtNum(r.Presisi)}</td><td class="num">${fmtNum(r.Recall)}</td><td class="num"><b>${fmtNum(r.F1)}</b></td>
+      <td class="num">${r["ROC-AUC"] == null ? "–" : fmtNum(r["ROC-AUC"])}</td><td class="num">${fmtPct(r["% minggu alarm"])}</td></tr>`).join("")}</tbody>`;
+  const ai = rows.find((r) => r.model.startsWith("Gradient"));
+  $("#e-clf-note").innerHTML = `Dengan jumlah alarm yang setara (±16–21% minggu), <b>${fmtPct(ai.Presisi * 100, 0)}</b> alarm AI benar-benar diikuti lonjakan —
+    hampir dua kali lipat aturan non-AI. Ambang alarm (${fmtPct(D.meta.ambang_alarm * 100, 0)}) dipilih pada data validasi 2023.`;
+}
+
+function renderBacktest() {
+  const k = S.bKom, kb = S.bKab, rows = D.backtest[k][kb];
+  const x = rows.map((r) => r[0]);
+  const mape = (i) => rows.reduce((s, r) => s + Math.abs(r[i] / r[1] - 1), 0) / rows.length * 100;
+  $("#b-score").innerHTML = `MAPE seri ini — sistem: <b>${fmtPct(mape(3), 2)}</b> · Naive: <b>${fmtPct(mape(2), 2)}</b> · model: ${D.meta.model_per_komoditas[k]}`;
+  plot("b-chart", [
+    { x: [...x, ...x.slice().reverse()], y: [...rows.map((r) => r[5]), ...rows.map((r) => r[4]).reverse()], fill: "toself",
+      fillcolor: "rgba(42,120,214,0.12)", line: { width: 0 }, mode: "lines", hoverinfo: "skip", name: "rentang 80%", type: "scatter" },
+    { x, y: rows.map((r) => r[1]), type: "scatter", mode: "lines", name: "harga aktual", line: { color: css("--ink-line"), width: 2 },
+      hovertemplate: "%{y:,.0f}<extra>aktual</extra>" },
+    { x, y: rows.map((r) => r[2]), type: "scatter", mode: "lines", name: "Naive (non-AI)", line: { color: css("--series-2"), width: 1.5 },
+      hovertemplate: "%{y:,.0f}<extra>Naive</extra>" },
+    { x, y: rows.map((r) => r[3]), type: "scatter", mode: "lines", name: "prediksi sistem", line: { color: css("--series-1"), width: 2 },
+      hovertemplate: "%{y:,.0f}<extra>sistem</extra>" },
+  ], { hovermode: "x unified", yaxis: { tickprefix: "Rp", tickformat: ",.0f" }, separators: ",." });
+}
+
+function renderImp() {
+  const imp = D.kepentingan_fitur.slice(0, 12).reverse();
+  plot("e-imp", [{ type: "bar", orientation: "h", y: imp.map((r) => r.fitur), x: imp.map((r) => r.nilai), width: 0.6,
+    marker: { color: css("--series-1"), cornerradius: 4 }, hovertemplate: "%{y}: %{x:.3f}<extra></extra>" }],
+    { margin: { l: 200, r: 16, t: 10, b: 40 }, xaxis: { title: { text: "penurunan PR-AUC" } }, showlegend: false });
+}
+
+function renderDM() {
+  $("#e-dm").innerHTML = `<thead><tr><th>Horizon</th><th>Pembanding</th><th class="num">MAPE pembanding</th><th class="num">MAPE AI</th><th class="num">p-value</th><th>Hasil</th></tr></thead><tbody>
+    ${D.uji_dm.map((r) => `<tr><td>${r.h} mgg</td><td>${r.pembanding}</td><td class="num">${fmtPct(r["MAPE baseline"], 2)}</td><td class="num">${fmtPct(r["MAPE AI"], 2)}</td>
+      <td class="num">${r["p-value"] < 0.001 ? "&lt;0,001" : fmtNum(r["p-value"], 3)}</td>
+      <td class="nowrap ${r["AI lebih baik & signifikan"] ? "yes" : "no"}">${r["AI lebih baik & signifikan"] ? "✓ AI lebih baik" : "tidak signifikan"}</td></tr>`).join("")}</tbody>`;
+}
+
+const render = {
+  ringkasan: () => { renderRingkasan(); },
+  prediksi: () => { renderPrediksi(); },
+  evaluasi: () => { renderMAPE(); renderKomBar(); renderClf(); renderBacktest(); renderImp(); },
+  tentang: () => {},
+};
+
+// ---------- init ----------
+fetch("data/dashboard.json").then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then((json) => {
+  D = json; KOM = D.meta.komoditas; KAB = D.meta.kabkota;
+  S.rKom = S.pKom = S.bKom = "Cabai Rawit Merah"; S.pKab = S.bKab = "Kota Bandung";
+  $("#stamp").innerHTML = `Data terakhir: <b>minggu ${mingguLabel(D.meta.data_terakhir)}</b><br>Model diperbarui ${tgl(D.meta.dibuat)} · ${D.meta.sumber}`;
+  $("#foot").innerHTML = `Sumber data: PIHPS Bank Indonesia, diolah. Prediksi bersifat probabilistik dan merupakan alat bantu keputusan, bukan kepastian. ·
+    <a href="https://github.com/dansek/ews-harga-pangan-jabar">Kode & data</a>`;
+  fillSelect($("#r-kom"), KOM, S.rKom); fillSelect($("#p-kom"), KOM, S.pKom); fillSelect($("#p-kab"), KAB, S.pKab);
+  fillSelect($("#b-kom"), KOM, S.bKom); fillSelect($("#b-kab"), KAB, S.bKab);
+  $("#r-kom").onchange = (e) => { S.rKom = e.target.value; renderRingkasan(); };
+  $("#p-kom").onchange = (e) => { S.pKom = e.target.value; renderPrediksi(); };
+  $("#p-kab").onchange = (e) => { S.pKab = e.target.value; renderPrediksi(); };
+  $("#b-kom").onchange = (e) => { S.bKom = e.target.value; renderBacktest(); };
+  $("#b-kab").onchange = (e) => { S.bKab = e.target.value; renderBacktest(); };
+  document.querySelectorAll("#p-range button").forEach((b) => b.onclick = () => {
+    document.querySelectorAll("#p-range button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    S.pWeeks = +b.dataset.w; renderPrediksi(); });
+  document.querySelectorAll("#e-h button").forEach((b) => b.onclick = () => {
+    document.querySelectorAll("#e-h button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    S.eH = +b.dataset.h; renderMAPE(); });
+  renderKPI(); renderMatrix(); renderReco(); renderNeed(); renderDM();
+  $("#loading").remove();
+  const start = location.hash.slice(1);
+  showTab(render[start] ? start : "ringkasan");
+}).catch((err) => {
+  $("#loading").innerHTML = `Gagal memuat data (${err.message}). Jika membuka file secara lokal, jalankan server: <code>python -m http.server</code> di folder <code>docs/</code>.`;
+});
+</script>
+</body>
+</html>
