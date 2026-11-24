@@ -173,7 +173,7 @@
   .sb-item.upd { color: #dfe9f6; background: rgba(42,120,214,.18); border: 1px solid rgba(42,120,214,.45); }
   .sb-item.upd:hover { background: rgba(42,120,214,.32); }
   .sb-item.upd.busy svg { animation: spin 1s linear infinite; }
-  .sb-meta { font-size: 11.5px; color: var(--sb-muted); padding: 6px 12px 2px; line-height: 1.4; white-space: normal; }
+  .sb-meta { font-size: 11.5px; color: var(--sb-muted); padding: 6px 12px 2px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sb-toggle svg { transition: transform .22s ease; }
   .app.collapsed .sb-label, .app.collapsed .sb-title, .app.collapsed .sb-sec, .app.collapsed .sb-meta { display: none; }
   .app.collapsed .sb-item { justify-content: center; padding: 10px 0; }
@@ -1027,7 +1027,11 @@ function tulisStamp() {
     ? new Date(D.meta.dibuat_utc).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) + " WIB"
     : tgl(D.meta.dibuat);
   $("#stamp").innerHTML = `Data terakhir: <b>minggu ${mingguLabel(D.meta.data_terakhir)}</b> · Model diperbarui ${wib} · ${D.meta.sumber}`;
-  $("#sb-meta").textContent = `Diperbarui ${wib}`;
+  const pendek = D.meta.dibuat_utc
+    ? new Date(D.meta.dibuat_utc).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + " WIB"
+    : tgl(D.meta.dibuat);
+  $("#sb-meta").textContent = `Diperbarui ${pendek}`;
+  $("#sb-meta").title = `Model diperbarui ${wib}`;
 }
 function terapkanData(json) {
   D = json; KOM = D.meta.komoditas; KAB = D.meta.kabkota;
