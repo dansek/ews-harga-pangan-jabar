@@ -100,12 +100,30 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", default="2019-01-01")
     ap.add_argument("--end", default=dt.date.today().isoformat())
-    ap.add_argument("--out", default=str(Path(__file__).resolve().parents[1] / "data/raw/pihps_jabar_harian.csv"))
+    ap.add_argument("--out", default=str(Path(__file__).resolve().parents[1] / "data/raw/pihps_jabar_harian.csv.gz"))
+    ap.add_argument("--incremental", action="store_true",
+                    help="hanya tarik ulang bulan terakhir di data lama s.d. hari ini, lalu gabungkan")
     a = ap.parse_args()
-    df = fetch_all(dt.date.fromisoformat(a.start), dt.date.fromisoformat(a.end))
-    Path(a.out).parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(a.out, index=False)
-    print(f"Tersimpan {len(df):,} baris -> {a.out}")
+    out = Path(a.out)
+    end = dt.date.fromisoformat(a.end)
+
+    if a.incremental and out.exists():
+        lama = pd.read_csv(out, parse_dates=["tanggal"])
+        terakhir = lama.tanggal.max().date()
+        # tarik ulang mulai awal bulan data terakhir (menangkap revisi data PIHPS)
+        mulai = terakhir.replace(day=1)
+        print(f"Data lama s.d. {terakhir}; menarik {mulai} s.d. {end}")
+        baru = fetch_all(mulai, end)
+        df = (pd.concat([lama[lama.tanggal < pd.Timestamp(mulai)], baru])
+                .drop_duplicates(["tanggal", "kabkota_id", "komoditas"], keep="last")
+                .sort_values(["kabkota", "komoditas", "tanggal"]).reset_index(drop=True))
+        print(f"Tambahan: {len(df) - len(lama):+,} baris; data terbaru {df.tanggal.max():%Y-%m-%d}")
+    else:
+        df = fetch_all(dt.date.fromisoformat(a.start), end)
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out, index=False)
+    print(f"Tersimpan {len(df):,} baris -> {out}")
 
 
 if __name__ == "__main__":
