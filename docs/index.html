@@ -737,7 +737,9 @@ function formMulai(err = "") {
     <details><summary style="cursor:pointer;color:var(--series-1)">Cara membuat token (sekali saja)</summary><ol>
       <li>Buka <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → Fine-grained token baru</a>.</li>
       <li><i>Repository access</i>: <b>Only select repositories</b> → <code>ews-harga-pangan-jabar</code>.</li>
-      <li><i>Permissions → Repository permissions</i>: <b>Actions → Read and write</b>.</li>
+      <li><i>Permissions → Repository permissions</i> (atau tombol <i>+ Add permissions</i>): pilih <b>Actions</b>
+          — keterangannya <i>"Workflows, workflow runs and artifacts"</i> — lalu ubah akses menjadi <b>Read and write</b>.
+          Bukan izin <i>Workflows</i> ("Update GitHub Action workflow files").</li>
       <li>Atur masa berlaku (mis. 90 hari), klik <i>Generate token</i>, salin, lalu tempel di bawah.</li></ol></details>
     <label for="upd-token" style="font-size:13px;font-weight:600;color:var(--text-secondary)">Token GitHub</label>
     <input type="password" id="upd-token" autocomplete="off" spellcheck="false" placeholder="github_pat_…">`}
