@@ -683,6 +683,9 @@ const render = {
 
 // ---------- pembaruan data (GitHub Actions) ----------
 const GH = { repo: "dansek/ews-harga-pangan-jabar", wf: "update-data.yml", key: "ews_gh_token" };
+// Dibuka lewat http(s) -> baca data di folder yang sama; dibuka sebagai file lokal/pratinjau -> baca dari GitHub Pages
+const DATA_URL = /^https?:$/.test(location.protocol) ? new URL("data/dashboard.json", location.href).href
+                                                    : "https://dansek.github.io/ews-harga-pangan-jabar/data/dashboard.json";
 const GH_API = `https://api.github.com/repos/${GH.repo}`;
 // Kelompok langkah = "job/step" di .github/workflows/update-data.yml; bobot = perkiraan durasi (detik, dari uji coba)
 const TAHAP = [
@@ -798,7 +801,7 @@ async function muatDataBaru() {
   const lama = D.meta.dibuat_utc || "";
   for (let i = 0; i < 45; i++) {                    // CDN GitHub Pages bisa butuh beberapa saat
     try {
-      const r = await fetch(`data/dashboard.json?t=${Date.now()}`, { cache: "no-store" });
+      const r = await fetch(`${DATA_URL}?t=${Date.now()}`, { cache: "no-store" });
       if (r.ok) { const j = await r.json(); if ((j.meta.dibuat_utc || "") !== lama) { terapkanData(j); U.lokal = "ok"; break; } }
     } catch { /* ulangi */ }
     await new Promise((res) => setTimeout(res, 4000));
@@ -880,7 +883,7 @@ function terapkanData(json) {
   const aktif = document.querySelector("nav button[aria-selected=true]")?.dataset.tab;
   if (aktif && render[aktif]) render[aktif]();
 }
-fetch("data/dashboard.json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then((json) => {
+fetch(DATA_URL, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then((json) => {
   D = json; KOM = D.meta.komoditas; KAB = D.meta.kabkota;
   S.rKom = S.pKom = S.bKom = "Cabai Rawit Merah"; S.pKab = S.bKab = "Kota Bandung";
   tulisStamp();
@@ -904,7 +907,7 @@ fetch("data/dashboard.json", { cache: "no-cache" }).then((r) => { if (!r.ok) thr
   const start = location.hash.slice(1);
   showTab(render[start] ? start : "ringkasan");
 }).catch((err) => {
-  $("#loading").innerHTML = `Gagal memuat data (${err.message}). Jika membuka file secara lokal, jalankan server: <code>python -m http.server</code> di folder <code>docs/</code>.`;
+  $("#loading").innerHTML = `Gagal memuat data (${err.message}). Periksa koneksi internet, lalu muat ulang halaman. Dashboard online: <a href="https://dansek.github.io/ews-harga-pangan-jabar/">dansek.github.io/ews-harga-pangan-jabar</a>`;
 });
 </script>
 </body>
