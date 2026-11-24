@@ -627,13 +627,14 @@ function renderRingkasan() {
   const maxP = Math.max(...kabs.map((kb) => st[kb].prob));
   plot("r-bar", [{
     type: "bar", orientation: "h", y: order, x: order.map((kb) => st[kb].prob * 100),
-    marker: { color: order.map(col), cornerradius: 4 }, width: 0.6,
+    marker: { color: order.map(col), cornerradius: 3 },
     text: order.map((kb) => fmtProb(st[kb].prob)), textposition: "outside", cliponaxis: false,
-    textfont: { color: css("--text-secondary") },
+    textfont: { color: css("--text-secondary"), size: 11 },
     hovertemplate: order.map((kb) => `<b>${kb}</b><br>${STATUS[st[kb].status].label} · peluang ${fmtPct(st[kb].prob * 100, 1)}<extra></extra>`),
   }], {
-    margin: { l: 116, r: 40, t: 18, b: 30 }, showlegend: false,
-    xaxis: { range: [0, 105], ticksuffix: "%" },
+    margin: { l: 112, r: 40, t: 16, b: 24 }, showlegend: false, bargap: 0.28,
+    xaxis: { range: [0, 105], ticksuffix: "%", tickfont: { size: 11 } },
+    yaxis: { tickmode: "array", tickvals: order, ticktext: order, tickfont: { size: 11.5, color: css("--text-secondary") } },
     shapes: [{ type: "line", x0: D.meta.ambang_alarm * 100, x1: D.meta.ambang_alarm * 100, y0: -0.5, y1: order.length - 0.5,
                line: { color: css("--critical"), width: 1.5, dash: "dot" } }],
     annotations: [{ x: D.meta.ambang_alarm * 100, y: order.length - 0.5, yanchor: "bottom", text: `ambang siaga ${fmtPct(D.meta.ambang_alarm * 100, 0)}`,
