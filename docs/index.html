@@ -141,7 +141,7 @@
       <div class="grid g2">
         <div>
           <h2>Peta status peringatan</h2>
-          <p class="desc">Warna = status peluang lonjakan &gt;10% dalam 4 minggu ke depan. Arahkan kursor untuk detail.</p>
+          <p class="desc">Warna titik = status peluang lonjakan &gt;10% dalam 4 minggu ke depan. Arahkan kursor ke titik untuk nama kab/kota & detail.</p>
           <div id="r-map" class="chart"></div>
         </div>
         <div>
@@ -414,12 +414,6 @@ function renderRingkasan() {
       marker: { size: 26, color: css("--surface-1") }, hoverinfo: "skip", showlegend: false },
     { type: "scattermapbox", lat: kabs.map((kb) => KOORD[kb][0]), lon: kabs.map((kb) => KOORD[kb][1]), mode: "markers",
       marker: { size: 20, color: kabs.map(col) }, hovertemplate: kabs.map(hover), showlegend: false },
-    ...[["top right", (kb) => !kb.startsWith("Kab.")], ["bottom left", (kb) => kb.startsWith("Kab.")]].map(([pos, f]) => {
-      const sel = kabs.filter(f);
-      return { type: "scattermapbox", lat: sel.map((kb) => KOORD[kb][0]), lon: sel.map((kb) => KOORD[kb][1]), mode: "text",
-               text: sel.map((kb) => kb.replace("Kota ", "")), textposition: pos, hoverinfo: "skip", showlegend: false,
-               textfont: { size: 12, color: css("--text-primary") } };
-    }),
   ], { margin: { l: 0, r: 0, t: 0, b: 0 }, mapbox: { style: "white-bg", center: { lat: -6.85, lon: 107.5 }, zoom: 7.1,
                layers: [{ sourcetype: "raster", below: "traces", opacity: 0.45, sourceattribution: "© OpenStreetMap contributors",
                           source: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"] }] } });
