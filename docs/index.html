@@ -684,14 +684,14 @@ const render = {
 // ---------- pembaruan data (GitHub Actions) ----------
 const GH = { repo: "dansek/ews-harga-pangan-jabar", wf: "update-data.yml", key: "ews_gh_token" };
 const GH_API = `https://api.github.com/repos/${GH.repo}`;
-// Kelompok langkah = nama step di .github/workflows/update-data.yml; bobot = perkiraan durasi (detik, dari uji coba)
+// Kelompok langkah = "job/step" di .github/workflows/update-data.yml; bobot = perkiraan durasi (detik, dari uji coba)
 const TAHAP = [
-  { label: "Menyiapkan lingkungan & library", steps: ["Set up job", "Siapkan repositori", "Siapkan Python", "Pasang library"], bobot: 40 },
-  { label: "Menarik data terbaru dari PIHPS", steps: ["Tarik data terbaru PIHPS"], bobot: 10 },
-  { label: "Mengolah data & EDA", steps: ["Olah data & EDA (notebook 01)"], bobot: 15 },
-  { label: "Melatih model & menghitung prediksi", steps: ["Latih model & hitung prediksi (notebook 02)"], bobot: 100 },
-  { label: "Menyimpan hasil", steps: ["Simpan hasil ke repositori"], bobot: 4 },
-  { label: "Menerbitkan dashboard", steps: ["Siapkan GitHub Pages", "Unggah dashboard", "Terbitkan dashboard"], bobot: 30 },
+  { label: "Menyiapkan lingkungan & library", steps: ["perbarui/Set up job", "perbarui/Siapkan repositori", "perbarui/Siapkan Python", "perbarui/Pasang library"], bobot: 40 },
+  { label: "Menarik data terbaru dari PIHPS", steps: ["perbarui/Tarik data terbaru PIHPS"], bobot: 10 },
+  { label: "Mengolah data & EDA", steps: ["perbarui/Olah data & EDA (notebook 01)"], bobot: 15 },
+  { label: "Melatih model & menghitung prediksi", steps: ["perbarui/Latih model & hitung prediksi (notebook 02)"], bobot: 100 },
+  { label: "Menyimpan hasil", steps: ["perbarui/Simpan hasil ke repositori"], bobot: 4 },
+  { label: "Menerbitkan dashboard", steps: ["perbarui/Siapkan GitHub Pages", "perbarui/Unggah dashboard", "terbitkan/Set up job", "terbitkan/Terbitkan dashboard"], bobot: 30 },
   { label: "Memuat data baru ke halaman", steps: [], bobot: 20, lokal: true },
 ];
 const U = { run: null, timer: null, tick: null, t0: null, pct: 0, state: "idle", jobs: null, lokal: "wait" };
@@ -809,7 +809,8 @@ async function muatDataBaru() {
 
 function statusTahap(t) {
   if (t.lokal) return { st: U.lokal, dur: null };
-  const steps = (U.jobs?.[0]?.steps || []).filter((s) => t.steps.includes(s.name));
+  const steps = (U.jobs || []).flatMap((j) => (j.steps || []).map((s) => ({ ...s, key: `${j.name}/${s.name}` })))
+                              .filter((s) => t.steps.includes(s.key));
   if (!steps.length) return { st: "wait", dur: null };
   if (steps.some((s) => s.conclusion === "failure" || s.conclusion === "cancelled")) return { st: "fail", dur: null };
   const selesai = steps.every((s) => s.status === "completed");

@@ -24,9 +24,6 @@ jobs:
   perbarui:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     env:
       OMP_NUM_THREADS: "2"
     steps:
@@ -80,6 +77,13 @@ jobs:
         with:
           path: docs
 
+  terbitkan:
+    needs: perbarui
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - name: Terbitkan dashboard
         id: deploy
         uses: actions/deploy-pages@v4
