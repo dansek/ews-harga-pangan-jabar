@@ -208,7 +208,8 @@
   .kpi .n { font-size: 11.5px; color: var(--text-muted); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ring-grid { display: grid; gap: 14px; margin-top: 14px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(470px, 1.1fr); }
   .ring-grid > .card, .col-right > .card { display: flex; flex-direction: column; min-height: 0; padding: 14px 16px; }
-  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px 10px; margin-bottom: 6px; flex-wrap: wrap; }
+  .card-head > div { flex: 1 1 200px; min-width: 0; }
   .card-head h2 { font-size: 15px; margin: 0; }
   .card-head .desc { margin: 2px 0 0 !important; font-size: 12px !important; }
   .card-head select { min-width: 0; max-width: 170px; font-size: 13px; padding: 5px 30px 5px 9px; flex: 0 0 auto; }
