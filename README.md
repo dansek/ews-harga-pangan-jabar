@@ -7,6 +7,8 @@ Sistem peringatan dini berbasis *machine learning* untuk memprediksi harga 5 kom
 Jawa Barat dan memberi sinyal **lonjakan harga** sebelum terjadi, untuk mendukung Tim Pengendalian
 Inflasi Daerah (TPID).
 
+**Dashboard:** <https://dansek.github.io/ews-harga-pangan-jabar/>
+
 ## Struktur repositori
 
 ```
