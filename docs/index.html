@@ -521,7 +521,12 @@ const BASE_LAYOUT = () => ({
 });
 const CFG = { displayModeBar: false, responsive: true, locale: "id" };
 const merge = (a, b) => { for (const k in b) { a[k] = (b[k] && typeof b[k] === "object" && !Array.isArray(b[k]) && a[k]) ? merge({ ...a[k] }, b[k]) : b[k]; } return a; };
-const plot = (id, data, layout = {}) => Plotly.react(id, data, merge(BASE_LAYOUT(), layout), CFG);
+const plot = (id, data, layout = {}) => {
+  const el = document.getElementById(id), L = merge(BASE_LAYOUT(), layout);
+  // kotak fleksibel (.fill): pakai ukuran kotak secara eksplisit agar tidak tergencet saat tata letak belum final
+  if (el.classList.contains("fill") && el.clientHeight > 60) { L.height = el.clientHeight; L.width = el.clientWidth; L.autosize = false; }
+  return Plotly.react(el, data, L, CFG);
+};
 
 // ---------- state ----------
 let D, KOM, KAB;
@@ -539,7 +544,10 @@ const HALAMAN = {
   tentang: ["Tentang & Metodologi", "Data, metode, keterbatasan & tautan"],
 };
 function resizePlots() {
-  document.querySelectorAll("section.active .js-plotly-plot").forEach((g) => Plotly.Plots.resize(g));
+  document.querySelectorAll("section.active .js-plotly-plot").forEach((g) => {
+    if (g.classList.contains("fill") && g.clientHeight > 60) Plotly.relayout(g, { width: g.clientWidth, height: g.clientHeight, autosize: false });
+    else Plotly.Plots.resize(g);
+  });
 }
 function showTab(name) {
   document.querySelectorAll(".sb-nav [data-tab]").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === name));
@@ -568,8 +576,12 @@ window.addEventListener("resize", () => { clearTimeout(window.__rz); window.__rz
 if ("ResizeObserver" in window) {
   const ro = new ResizeObserver((entries) => entries.forEach((e) => {
     const g = e.target; if (!g.offsetParent || !g.classList.contains("js-plotly-plot")) return;
-    Plotly.Plots.resize(g);
-    if (g.id === "r-map") Plotly.relayout(g, { "mapbox.zoom": zoomPas(g) });
+    if (g.classList.contains("fill")) {
+      if (g.clientHeight < 60) return;
+      const upd = { width: g.clientWidth, height: g.clientHeight, autosize: false };
+      if (g.id === "r-map") upd["mapbox.zoom"] = zoomPas(g);
+      Plotly.relayout(g, upd);
+    } else Plotly.Plots.resize(g);
   }));
   document.querySelectorAll(".fill, .chart").forEach((el) => ro.observe(el));
 }
