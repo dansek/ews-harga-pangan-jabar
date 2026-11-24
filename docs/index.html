@@ -63,6 +63,9 @@
   .tile .value small { font-size: 15px; font-weight: 600; color: var(--text-secondary); }
   .filters { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; margin-bottom: 14px; }
   .filters label { display: flex; flex-direction: column; font-size: 12.5px; color: var(--text-secondary); gap: 4px; font-weight: 600; }
+  select { appearance: none; -webkit-appearance: none; padding-right: 36px !important;
+           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2352514e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+           background-repeat: no-repeat !important; background-position: right 12px center !important; cursor: pointer; }
   select { font: inherit; font-size: 14px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-1);
            color: var(--text-primary); min-width: 190px; }
   .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
@@ -325,6 +328,7 @@ const $ = (s) => document.querySelector(s);
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const fmtRp = (x) => x == null ? "–" : "Rp" + Math.round(x).toLocaleString("id-ID");
 const fmtPct = (x, d = 1) => x == null ? "–" : x.toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d }) + "%";
+const fmtProb = (p) => p == null ? "–" : (p * 100 < 1 ? "<1%" : fmtPct(p * 100, 0));
 const fmtNum = (x, d = 2) => x == null ? "–" : x.toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d });
 const BULAN = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 const tgl = (s) => { const d = new Date(s + "T00:00:00"); return `${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`; };
@@ -407,7 +411,7 @@ function renderRingkasan() {
   // peta
   const kabs = KAB.slice();
   const col = (kb) => css(STATUS[st[kb].status].color);
-  const hover = (kb) => `<b>${kb}</b><br>${STATUS[st[kb].status].icon} ${STATUS[st[kb].status].label} · peluang ${fmtPct(st[kb].prob * 100, 0)}`
+  const hover = (kb) => `<b>${kb}</b><br>${STATUS[st[kb].status].icon} ${STATUS[st[kb].status].label} · peluang ${fmtProb(st[kb].prob)}`
     + `<br>Harga kini ${fmtRp(st[kb].harga)}<br>Prediksi 4 mgg ${fmtRp(st[kb].pred_4mgg)} (${st[kb].perubahan_4mgg >= 0 ? "+" : ""}${fmtPct(st[kb].perubahan_4mgg)})<extra></extra>`;
   plot("r-map", [
     { type: "scattermapbox", lat: kabs.map((kb) => KOORD[kb][0]), lon: kabs.map((kb) => KOORD[kb][1]), mode: "markers",
@@ -419,10 +423,11 @@ function renderRingkasan() {
                           source: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"] }] } });
   // bar peluang
   const order = kabs.slice().sort((a, b) => st[a].prob - st[b].prob);
+  const maxP = Math.max(...kabs.map((kb) => st[kb].prob));
   plot("r-bar", [{
     type: "bar", orientation: "h", y: order, x: order.map((kb) => st[kb].prob * 100),
     marker: { color: order.map(col), cornerradius: 4 }, width: 0.6,
-    text: order.map((kb) => fmtPct(st[kb].prob * 100, 0)), textposition: "outside", cliponaxis: false,
+    text: order.map((kb) => fmtProb(st[kb].prob)), textposition: "outside", cliponaxis: false,
     textfont: { color: css("--text-secondary") },
     hovertemplate: order.map((kb) => `<b>${kb}</b><br>${STATUS[st[kb].status].label} · peluang ${fmtPct(st[kb].prob * 100, 1)}<extra></extra>`),
   }], {
@@ -431,7 +436,10 @@ function renderRingkasan() {
     shapes: [{ type: "line", x0: D.meta.ambang_alarm * 100, x1: D.meta.ambang_alarm * 100, y0: -0.5, y1: order.length - 0.5,
                line: { color: css("--critical"), width: 1.5, dash: "dot" } }],
     annotations: [{ x: D.meta.ambang_alarm * 100, y: order.length - 0.5, yanchor: "bottom", text: `ambang siaga ${fmtPct(D.meta.ambang_alarm * 100, 0)}`,
-                    showarrow: false, font: { size: 11, color: css("--critical") } }],
+                    showarrow: false, font: { size: 11, color: css("--critical") } },
+                  ...(maxP < 0.05 ? [{ x: 72, y: (order.length - 1) / 2, xanchor: "center", showarrow: false, align: "center",
+                    bgcolor: css("--surface-1"), bordercolor: css("--border"), borderpad: 8, font: { size: 12.5, color: css("--text-secondary") },
+                    text: `Peluang lonjakan di semua kab/kota<br>sangat kecil (tertinggi ${fmtPct(maxP * 100, 1)}).<br>Tidak ada indikasi kenaikan >10%<br>dalam 4 minggu ke depan.` }] : [])],
   });
 }
 
@@ -439,7 +447,7 @@ function renderMatrix() {
   const head = `<tr><th>Kab/kota</th>${KOM.map((k) => `<th>${k}</th>`).join("")}</tr>`;
   const rows = KAB.map((kb) => `<tr><td><b>${kb}</b></td>${KOM.map((k) => {
     const s = D.status[k][kb];
-    return `<td class="cell" data-kom="${k}" data-kab="${kb}" title="Lihat prediksi ${k} – ${kb}">${badge(s.status)}<span class="p">${fmtPct(s.prob * 100, 0)}</span></td>`;
+    return `<td class="cell" data-kom="${k}" data-kab="${kb}" title="Lihat prediksi ${k} – ${kb}">${badge(s.status)}<span class="p">${fmtProb(s.prob)}</span></td>`;
   }).join("")}</tr>`).join("");
   $("#r-matrix").innerHTML = `<thead>${head}</thead><tbody>${rows}</tbody>`;
   $("#r-matrix").querySelectorAll("td.cell").forEach((td) => td.addEventListener("click", () => {
@@ -497,7 +505,7 @@ function renderPrediksi() {
   $("#p-status").innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
       <span class="sub">Status peringatan</span>${badge(st.status, "big-status")}</div>`;
   $("#p-kv").innerHTML = `
-    <dt>Peluang lonjakan &gt;10%</dt><dd>${fmtPct(st.prob * 100, 0)}</dd>
+    <dt>Peluang lonjakan &gt;10%</dt><dd>${fmtProb(st.prob)}</dd>
     <dt>Harga minggu ini</dt><dd>${fmtRp(st.harga)}</dd>
     <dt>Prediksi 4 minggu</dt><dd>${fmtRp(st.pred_4mgg)}</dd>
     <dt>Perubahan diprediksi</dt><dd>${st.perubahan_4mgg >= 0 ? "+" : ""}${fmtPct(st.perubahan_4mgg)}</dd>
